@@ -6,6 +6,7 @@ package com.pblgllgs.sb3mcsvcreview.review;
  *
  */
 
+import com.pblgllgs.sb3mcsvcreview.messaging.ReviewMessageProducer;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,9 +18,11 @@ import java.util.List;
 public class ReviewController {
 
     private final ReviewService reviewService;
+    private final ReviewMessageProducer reviewMessageProducer;
 
-    public ReviewController(ReviewService reviewService) {
+    public ReviewController(ReviewService reviewService, ReviewMessageProducer reviewMessageProducer) {
         this.reviewService = reviewService;
+        this.reviewMessageProducer = reviewMessageProducer;
     }
 
     @GetMapping
@@ -36,6 +39,7 @@ public class ReviewController {
     ) {
         boolean success = reviewService.createReview(companyId, review);
         if (success) {
+            reviewMessageProducer.sendMessage(review);
             return new ResponseEntity<>("Review added successfully", HttpStatus.CREATED);
         }
         return new ResponseEntity<>("Review cant be created because company dont exists", HttpStatus.BAD_REQUEST);
@@ -67,5 +71,11 @@ public class ReviewController {
             return new ResponseEntity<>("Review deleted successfully", HttpStatus.CREATED);
         }
         return new ResponseEntity<>("Review cant be deleted", HttpStatus.BAD_REQUEST);
+    }
+
+    @GetMapping("/averageRating")
+    public Double getAverageReview(@RequestParam Long companyId) {
+        List<Review> allReviewsByCompanyId = reviewService.getAllReviewsByCompanyId(companyId);
+        return allReviewsByCompanyId.stream().mapToDouble(Review::getRating).average().orElse(0.0);
     }
 }
